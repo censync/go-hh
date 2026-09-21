@@ -1,0 +1,95 @@
+name: ci
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        go: ["1.21", "1.22", "1.23", "1.24", "1.25", "1.26", "stable"]
+        include:
+          - { os: macos-latest, go: "1.21" }
+          - { os: macos-latest, go: "stable" }
+          - { os: windows-latest, go: "1.21" }
+          - { os: windows-latest, go: "stable" }
+    runs-on: ${{ matrix.os }}
+    env:
+      # The job tests the release it names, not one that go.mod could ask for.
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: ${{ matrix.go }}
+          cache: false
+      - name: gofmt
+        if: matrix.os == 'ubuntu-latest' && matrix.go == 'stable'
+        run: |
+          test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+      - name: The standard library only
+        if: runner.os != 'Windows'
+        run: |
+          if grep -E '^(require|replace|toolchain)' go.mod; then exit 1; fi
+          test ! -e go.sum
+      - name: Vet
+        run: go vet ./...
+      - name: Test with the race detector
+        if: runner.os != 'Windows'
+        run: go test -race ./...
+      - name: Test
+        if: runner.os == 'Windows'
+        run: go test ./...
+
+  # testdata/ must be the vectors of the hh-cpp release that testdata/SOURCE names.
+  provenance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Read testdata/SOURCE
+        id: source
+        run: |
+          echo "tag=$(sed -n 's/^tag: //p' testdata/SOURCE)" >> "$GITHUB_OUTPUT"
+          echo "commit=$(sed -n 's/^commit: //p' testdata/SOURCE)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v7
+        with:
+          repository: censync/hh-cpp
+          ref: ${{ steps.source.outputs.tag }}
+          path: hh-cpp
+      - name: The tag is the recorded commit
+        run: test "$(git -C hh-cpp rev-parse HEAD)" = "${{ steps.source.outputs.commit }}"
+      - name: The copy is byte-identical
+        run: |
+          diff -r -x SOURCE -x fuzz hh-cpp/testdata testdata
+          (cd testdata && grep -E '^[0-9a-f]{64}  ' SOURCE | sha256sum --check --quiet)
+
+  # Pseudo-random cases beyond the vector set, against hh_cli built from the same release.
+  differential:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+          cache: false
+      - name: Read testdata/SOURCE
+        id: source
+        run: |
+          echo "tag=$(sed -n 's/^tag: //p' testdata/SOURCE)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v7
+        with:
+          repository: censync/hh-cpp
+          ref: ${{ steps.source.outputs.tag }}
+          path: hh-cpp
+      - name: Build hh_cli
+        run: |
+          cmake -S hh-cpp -B hh-cpp/build -DCMAKE_BUILD_TYPE=Release -DHH_BUILD_TESTS=OFF
+          cmake --build hh-cpp/build --parallel --target hh_cli
+      - name: Crosscheck
+        run: |
+          tools/crosscheck.sh hh-cpp/build/examples/hh_cli 2000 1
+          tools/crosscheck.sh hh-cpp/build/examples/hh_cli 2000 2

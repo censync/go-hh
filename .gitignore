@@ -1,0 +1,14 @@
+# Build products: tools/crosscheck.sh works in build/
+/build/
+/hh-cli
+/hh-cli.exe
+*.test
+*.prof
+*.out
+
+# Editors and local tooling
+.idea/
+*.iml
+.vscode/
+*.swp
+.DS_Store
