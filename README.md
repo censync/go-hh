@@ -115,6 +115,54 @@ recognition in lists. See [docs/INTEGRATION.md](docs/INTEGRATION.md) for `net/ht
 [SECURITY.md](https://github.com/censync/hh-cpp/blob/v1.0.0/docs/SECURITY.md) of hh-cpp for what
 a picture proves and what it does not.
 
+## A complete program
+
+A command line program that writes the picture of an address to a PNG file and prints its tag.
+
+```sh
+mkdir hh-example && cd hh-example
+go mod init example.com/hh-example
+go get github.com/censync/go-hh@v1.0.0
+```
+
+`main.go`:
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+	"os"
+
+	hh "github.com/censync/go-hh"
+)
+
+func main() {
+	digest, err := hh.BaseDigestFromHex("0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fp := hh.Universal(digest)
+	img, err := hh.Render(fp, 128, hh.RenderOptions{})
+	if err != nil {
+		log.Fatal(err)
+	}
+	png, err := img.EncodePNG()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := os.WriteFile("address.png", png, 0o644); err != nil {
+		log.Fatal(err)
+	}
+	tag := fp.Tag()
+	fmt.Println(tag[:3] + "-" + tag[3:])
+}
+```
+
+`go run .` prints `TKS-PVH` and writes `address.png`, byte for byte the file
+`testdata/golden/evm-1-universal-128.png` that every implementation reproduces.
+
 ## Building
 
 Go 1.21 or newer; nothing else.
