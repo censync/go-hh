@@ -14,7 +14,7 @@ The two addresses agree in their first and last eight hex digits. Their pictures
 
 This is the Go implementation. It uses the Go standard library only and produces, byte for byte,
 the output of the C++ reference implementation [hh-cpp](https://github.com/censync/hh-cpp), which
-owns the [specification](https://github.com/censync/hh-cpp/blob/v1.0.0/docs/SPEC.md) and the
+owns the [specification](https://github.com/censync/hh-cpp/blob/v1.1.0/docs/SPEC.md) and the
 golden vectors. `testdata/` is a byte-identical copy of those vectors; `testdata/SOURCE` names
 the hh-cpp release they came from.
 
@@ -26,7 +26,7 @@ tests check it against a copy of the golden vectors of hh-cpp.
 | Language | Repository | Package | Install |
 |---|---|---|---|
 | C++17, C ABI | [hh-cpp](https://github.com/censync/hh-cpp), the reference: specification and golden vectors | CMake `hh::hh`, pkg-config `hh` ([releases](https://github.com/censync/hh-cpp/releases)) | CMake `FetchContent` or `find_package(hh)` |
-| Kotlin and Java: JVM, Android | [hh-kotlin](https://github.com/censync/hh-kotlin) | Maven Central [`io.github.censync:hh`](https://central.sonatype.com/artifact/io.github.censync/hh) | `implementation("io.github.censync:hh:1.0.0")` |
+| Kotlin and Java: JVM, Android | [hh-kotlin](https://github.com/censync/hh-kotlin) | Maven Central [`io.github.censync:hh`](https://central.sonatype.com/artifact/io.github.censync/hh) | `implementation("io.github.censync:hh:1.1.0")` |
 | TypeScript and JavaScript: browsers, Node.js, Deno, Bun | [hh-ts](https://github.com/censync/hh-ts) | npm [`@censync/hh`](https://www.npmjs.com/package/@censync/hh) | `npm install @censync/hh` |
 | Go | go-hh (this repository) | [`github.com/censync/go-hh`](https://pkg.go.dev/github.com/censync/go-hh) | `go get github.com/censync/go-hh` |
 | Python | [hh-python](https://github.com/censync/hh-python) | PyPI [`humanized-hash`](https://pypi.org/project/humanized-hash/) | `pip install humanized-hash` |
@@ -47,7 +47,7 @@ every bit of the input.
 What a forger pays, by calculation. One current GPU tries about 1.4 billion addresses per second;
 a try against hh also has to compute the stretched base digest, which leaves about 680 000 tries
 per second. The figures are the expected search times on one such GPU for a typical picture
-([SECURITY.md](https://github.com/censync/hh-cpp/blob/v1.0.0/docs/SECURITY.md) of hh-cpp has the
+([SECURITY.md](https://github.com/censync/hh-cpp/blob/v1.1.0/docs/SECURITY.md) of hh-cpp has the
 reasoning).
 
 | The forged address has to match | Tries | One GPU |
@@ -83,7 +83,7 @@ evidence rather than proof; the tag or the full address is the check that is cer
   apart under simulated protanopia, deuteranopia and tritanopia, and every colour keeps a contrast
   of 3:1 on white and on dark surfaces. Shape carries most of the information, so a picture still
   works in greyscale (the measurements are in
-  [docs/design](https://github.com/censync/hh-cpp/tree/v1.0.0/docs/design) of hh-cpp).
+  [docs/design](https://github.com/censync/hh-cpp/tree/v1.1.0/docs/design) of hh-cpp).
 - **Pixels, not pictures.** The package returns straight-alpha RGBA pixels and encoded files;
   `Image.NRGBA` hands the pixels to the standard `image` packages without a copy.
 
@@ -114,7 +114,7 @@ compared with. [docs/INTEGRATION.md](docs/INTEGRATION.md) has the rest.
 ## Quick start
 
 ```sh
-go get github.com/censync/go-hh@v1.0.0
+go get github.com/censync/go-hh@v1.1.0
 ```
 
 ```go
@@ -145,14 +145,14 @@ A decision (confirming a payment, verifying a pasted address) should be backed b
 least 64 points, better 96, next to the picture it is compared with. Smaller pictures are for
 recognition in lists. See [docs/INTEGRATION.md](docs/INTEGRATION.md) for `net/http`,
 `image/draw` and key handling recipes and for the product rules, and
-[SECURITY.md](https://github.com/censync/hh-cpp/blob/v1.0.0/docs/SECURITY.md) of hh-cpp for what
+[SECURITY.md](https://github.com/censync/hh-cpp/blob/v1.1.0/docs/SECURITY.md) of hh-cpp for what
 a picture proves and what it does not.
 
 ## Looks
 
-The cells, the palette and the geometry are fixed; the host chooses the shape, the background and,
-for a keyed picture, the marker. Every picture below is the address of the quick start,
-rendered at 128 px.
+The cells, the palette and the geometry are fixed; the host chooses the shape, the background and
+the frame, in either mode. Every picture below is the address of the quick start, rendered at
+128 px.
 
 | Shape | Opaque white | Light blue `E8EEF7` | Transparent | Keyed, transparent |
 |---|---|---|---|---|
@@ -165,9 +165,10 @@ rendered at 128 px.
 - **Contrast.** An opaque background is refused below 2:1 against a palette colour, and the
   contrast report gives the WCAG ratio so that a host can warn below 3:1. White scores 300, the
   light blue above 257, `121212` scores 300; mid greys and saturated surfaces are what to avoid.
-- **The frame marks the mode.** A universal picture has no frame by default, a keyed square gets
-  rounded corners, and the round shape stays unmarked unless a style is asked for (ticks above).
-  Pick one style and keep it everywhere in an application.
+- **Frames are open to both modes.** Every style that fits the shape works for universal and
+  keyed pictures alike. By default a universal picture has no frame and a keyed square gets
+  rounded corners; a host that marks its keyed pictures picks one style and keeps it everywhere,
+  and names the mode in the caption, since a frame alone proves nothing.
 - **The round shape** inscribes the same grid in a circle, so its cells are about a third smaller;
   give it a third more pixels.
 
@@ -175,7 +176,7 @@ rendered at 128 px.
 options := hh.RenderOptions{
 	Shape:      hh.ShapeRound,
 	Background: hh.Transparent(), // or hh.Opaque(hh.RGB{0xE8, 0xEE, 0xF7})
-	Frame:      hh.FrameTicks,    // a marker: keyed pictures only
+	Frame:      hh.FrameTicks,    // any style of the shape, in either mode
 }
 
 report := hh.MeasureContrast(options, hh.White)
@@ -191,7 +192,7 @@ A command line program that writes the picture of an address to a PNG file and p
 ```sh
 mkdir hh-example && cd hh-example
 go mod init example.com/hh-example
-go get github.com/censync/go-hh@v1.0.0
+go get github.com/censync/go-hh@v1.1.0
 ```
 
 `main.go`:

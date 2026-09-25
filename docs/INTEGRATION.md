@@ -2,7 +2,7 @@
 
 How to put go-hh into a program. What to hash, which mode to show where and how large a picture
 must be are the same for every implementation and are described once, in
-[INTEGRATION.md of hh-cpp](https://github.com/censync/hh-cpp/blob/v1.0.0/docs/INTEGRATION.md)
+[INTEGRATION.md of hh-cpp](https://github.com/censync/hh-cpp/blob/v1.1.0/docs/INTEGRATION.md)
 (sections 1 to 4: recommended inputs per chain, the product rules, looks). This document adds
 the Go side.
 
@@ -193,7 +193,7 @@ The zero `hh.RenderOptions` is the default look: square, the automatic frame, op
 ```go
 opts := hh.RenderOptions{
     Shape:      hh.ShapeRound,
-    Frame:      hh.FrameDouble, // a keyed-mode marker: refused for a universal fingerprint
+    Frame:      hh.FrameDouble, // any style of the shape, in either mode
     Background: hh.Opaque(hh.RGB{R: 0x12, G: 0x12, B: 0x12}),
     FrameAlpha: hh.Alpha(200),
 }
@@ -204,8 +204,13 @@ if report.FiguresX100 < 300 {
 ```
 
 - `hh.FrameAutomatic` gives universal pictures no frame and keyed square pictures rounded
-  corners. `FrameNone` and `FramePlain` are open to both modes; every other style marks a keyed
-  picture. Use one style everywhere: the marker is only useful if it is familiar.
+  corners. Every style is open to both modes: `FrameNone`, `FramePlain`, `FrameDouble` and
+  `FrameThick` fit either shape, `FrameRounded`, `FrameChamfered` and `FrameBrackets` the square,
+  `FrameTicks` and `FrameGaps` the round shape; a style that does not fit the shape is
+  `hh.ErrInvalidFrame`. A host that marks its keyed pictures with a frame uses one style
+  everywhere in the application and on every device of a user: a marker is only useful if it is
+  familiar. The library does not enforce the marker, so the caption, not the frame, is what tells
+  the user the mode.
 - `Render` refuses an opaque background with less than 2:1 against any palette colour
   (`hh.ErrLowContrast`). For a translucent background it cannot know what lies underneath, so
   measure with the page colour. On a dark theme use `hh.Transparent()` over a dark surface
@@ -248,7 +253,7 @@ every implementation, and `Code.String` its name (`"invalid_hex"`).
 | `ImportBaseDigest` | `ErrInvalidDigest` |
 | `NewSecretKey`; `Keyed` with a nil or closed key | `ErrInvalidKey` |
 | `ImportFingerprint` | `ErrInvalidFingerprint` |
-| `Render` | `ErrInvalidFingerprint` (the zero `Fingerprint`), `ErrInvalidArgument` (an unknown `Shape` or `Frame` value), then in the order of the specification `ErrInvalidSize`, `ErrInvalidFrame`, `ErrLowContrast`, `ErrInvalidSize` (no room for the cells) |
+| `Render` | `ErrInvalidFingerprint` (the zero `Fingerprint`), `ErrInvalidArgument` (an unknown `Shape` or `Frame` value), then in the order of the specification `ErrInvalidSize`, `ErrInvalidFrame` (a style that does not fit the shape, in either mode), `ErrLowContrast`, `ErrInvalidSize` (no room for the cells) |
 | `EncodePNG`, `EncodeBMP`, `EncodeJPEG` | `ErrInvalidImage`; `EncodeJPEG` then `ErrInvalidQuality` |
 | `ParseShape`, `ParseFrame`, `ParseRGB`, `ParseBackground`, `ParseOpacity`, `ParseMode` and the `UnmarshalText` methods | `ErrInvalidArgument` |
 | `MarshalText` of `Shape`, `Frame` and `Mode` | `ErrInvalidArgument` for a value outside the table |

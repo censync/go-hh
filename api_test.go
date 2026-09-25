@@ -440,7 +440,7 @@ func TestErrorsCarryTheCodesOfTheSpecification(t *testing.T) {
 }
 
 func TestVersion(t *testing.T) {
-	if Version != "1.0.0" {
+	if Version != "1.1.0" {
 		t.Errorf("version %s", Version)
 	}
 }

@@ -11,7 +11,7 @@ const (
 // the order of SPEC.md section 6: ErrInvalidFingerprint for the zero
 // Fingerprint, ErrInvalidArgument for an unknown Shape or Frame value,
 // ErrInvalidSize unless size is MinSize..MaxSize, ErrInvalidFrame if the frame
-// is not allowed for the shape or the mode, ErrLowContrast for an opaque
+// does not fit the shape (the mode plays no part), ErrLowContrast for an opaque
 // background with less than 2:1 against a palette colour, and ErrInvalidSize
 // again if the size leaves no room for the cells (the round shape with
 // FrameDouble or FrameThick below 18 pixels).
@@ -29,7 +29,7 @@ func Render(fp Fingerprint, size int, opts RenderOptions) (*Image, error) {
 		return nil, ErrInvalidSize
 	}
 	frame := resolveFrame(opts.Frame, fp.mode, opts.Shape)
-	if !frameAllowed(frame, fp.mode, opts.Shape) {
+	if !frameAllowed(frame, opts.Shape) {
 		return nil, ErrInvalidFrame
 	}
 	background := opts.Background
@@ -63,17 +63,16 @@ func resolveFrame(frame Frame, mode Mode, shape Shape) Frame {
 	return FrameNone
 }
 
-// frameAllowed is the table of SPEC.md section 6 for a resolved frame.
-func frameAllowed(frame Frame, mode Mode, shape Shape) bool {
+// frameAllowed is the table of SPEC.md section 6 for a resolved frame. The
+// mode plays no part.
+func frameAllowed(frame Frame, shape Shape) bool {
 	switch frame {
-	case FrameNone, FramePlain:
+	case FrameNone, FramePlain, FrameDouble, FrameThick:
 		return true
 	case FrameRounded, FrameChamfered, FrameBrackets:
-		return mode == ModeKeyed && shape == ShapeSquare
-	case FrameDouble, FrameThick:
-		return mode == ModeKeyed
+		return shape == ShapeSquare
 	case FrameTicks, FrameGaps:
-		return mode == ModeKeyed && shape == ShapeRound
+		return shape == ShapeRound
 	}
 	return false
 }

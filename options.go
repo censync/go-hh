@@ -54,21 +54,24 @@ func (s *Shape) UnmarshalText(text []byte) error {
 	return unmarshalText(s, text, ParseShape)
 }
 
-// Frame is the frame style of a picture. FrameNone and FramePlain are open to
-// both modes. Every other style is a keyed-mode marker: it tells the user that
-// the picture is the private one, and Render refuses it for a universal
-// fingerprint.
+// Frame is the frame style of a picture. Every style is open to universal and
+// keyed fingerprints alike; what limits it is the shape. FrameNone, FramePlain,
+// FrameDouble and FrameThick fit both shapes, FrameRounded, FrameChamfered and
+// FrameBrackets need ShapeSquare, FrameTicks and FrameGaps need ShapeRound, and
+// Render refuses a style that does not fit the shape with ErrInvalidFrame. Only
+// FrameAutomatic looks at the mode: it gives keyed square pictures rounded
+// corners. A host that marks its keyed pictures with a frame picks the style.
 type Frame uint8
 
-// The frame styles of SPEC.md section 6.
+// The frame styles of SPEC.md section 6, each open to both modes.
 const (
 	FrameAutomatic Frame = 0 // keyed and square: FrameRounded; otherwise FrameNone
-	FrameNone      Frame = 1 // no frame
-	FramePlain     Frame = 2 // a thin square frame, or a thin ring
+	FrameNone      Frame = 1 // either shape: no frame
+	FramePlain     Frame = 2 // either shape: a thin square frame, or a thin ring
 	FrameRounded   Frame = 3 // square only: rounded corners
 	FrameChamfered Frame = 4 // square only: four cut corners
-	FrameDouble    Frame = 5 // two thin lines
-	FrameThick     Frame = 6 // one line three times as thick
+	FrameDouble    Frame = 5 // either shape: two thin lines
+	FrameThick     Frame = 6 // either shape: one line three times as thick
 	FrameBrackets  Frame = 7 // square only: corner brackets
 	FrameTicks     Frame = 8 // round only: a ring with four ticks
 	FrameGaps      Frame = 9 // round only: a ring with four gaps
@@ -296,8 +299,10 @@ var (
 type RenderOptions struct {
 	// Shape is square or round.
 	Shape Shape
-	// Frame is the frame style. Use one style everywhere in an application:
-	// the marker of the private picture is only useful if it is familiar.
+	// Frame is the frame style: any style that fits the shape, in either mode.
+	// A host that marks its keyed pictures with a frame uses one style
+	// everywhere, since a marker is only useful if it is familiar, and names
+	// the mode in the caption, since a frame alone proves nothing.
 	Frame Frame
 	// Background is the colour and alpha behind the figures.
 	Background Background

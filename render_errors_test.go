@@ -19,8 +19,11 @@ func TestRenderErrorsComeInTheSpecifiedOrder(t *testing.T) {
 		{"everything wrong", Fingerprint{}, 0, RenderOptions{Shape: 9, Frame: 99, Background: grey}, ErrInvalidFingerprint},
 		{"unknown shape, bad size", universal, 0, RenderOptions{Shape: 2, Frame: FrameThick, Background: grey}, ErrInvalidArgument},
 		{"unknown frame, bad size", universal, 0, RenderOptions{Frame: 10, Background: grey}, ErrInvalidArgument},
-		{"bad size, frame and contrast", universal, 15, RenderOptions{Frame: FrameThick, Background: grey}, ErrInvalidSize},
-		{"bad frame and contrast", universal, 64, RenderOptions{Frame: FrameThick, Background: grey}, ErrInvalidFrame},
+		{"bad size, frame and contrast", universal, 15, RenderOptions{Frame: FrameTicks, Background: grey}, ErrInvalidSize},
+		{"bad frame and contrast", universal, 64, RenderOptions{Frame: FrameTicks, Background: grey}, ErrInvalidFrame},
+		{"bad frame and contrast, keyed", keyed, 64, RenderOptions{Frame: FrameTicks, Background: grey}, ErrInvalidFrame},
+		{"bad contrast", universal, 64, RenderOptions{Frame: FrameThick, Background: grey}, ErrLowContrast},
+		{"bad contrast, keyed", keyed, 64, RenderOptions{Frame: FrameThick, Background: grey}, ErrLowContrast},
 		{"bad contrast, no room", keyed, 16, RenderOptions{Shape: ShapeRound, Frame: FrameThick, Background: grey}, ErrLowContrast},
 		{"no room", keyed, 16, RenderOptions{Shape: ShapeRound, Frame: FrameThick}, ErrInvalidSize},
 		{"no room at 17", keyed, 17, RenderOptions{Shape: ShapeRound, Frame: FrameDouble}, ErrInvalidSize},
@@ -41,25 +44,28 @@ func TestRenderErrorsComeInTheSpecifiedOrder(t *testing.T) {
 	}
 }
 
-// The table of SPEC.md section 6, in full.
+// The table of SPEC.md section 6, in full. The shape alone decides; both modes
+// take every style.
 func TestFrameTable(t *testing.T) {
-	type row struct{ square, round, universal, keyed bool }
+	type row struct{ square, round bool }
 	table := map[Frame]row{
-		FrameNone:      {true, true, true, true},
-		FramePlain:     {true, true, true, true},
-		FrameRounded:   {true, false, false, true},
-		FrameChamfered: {true, false, false, true},
-		FrameBrackets:  {true, false, false, true},
-		FrameDouble:    {true, true, false, true},
-		FrameThick:     {true, true, false, true},
-		FrameTicks:     {false, true, false, true},
-		FrameGaps:      {false, true, false, true},
+		FrameNone:      {true, true},
+		FramePlain:     {true, true},
+		FrameRounded:   {true, false},
+		FrameChamfered: {true, false},
+		FrameBrackets:  {true, false},
+		FrameDouble:    {true, true},
+		FrameThick:     {true, true},
+		FrameTicks:     {false, true},
+		FrameGaps:      {false, true},
+	}
+	if len(table) != len(frameNames)-1 {
+		t.Fatalf("the table has %d styles", len(table))
 	}
 	for frame, r := range table {
 		for _, mode := range []Mode{ModeUniversal, ModeKeyed} {
 			for _, shape := range []Shape{ShapeSquare, ShapeRound} {
-				allowed := (shape == ShapeSquare && r.square || shape == ShapeRound && r.round) &&
-					(mode == ModeUniversal && r.universal || mode == ModeKeyed && r.keyed)
+				allowed := shape == ShapeSquare && r.square || shape == ShapeRound && r.round
 				_, err := Render(mustFingerprint(t, testDigestHex, mode), 64, RenderOptions{Shape: shape, Frame: frame})
 				if allowed && err != nil || !allowed && err != ErrInvalidFrame {
 					t.Errorf("%v %v %v: %v", frame, shape, mode, err)

@@ -96,7 +96,8 @@ func ExampleImportFingerprint() {
 	// hh: invalid_fingerprint: the fingerprint must be 32 bytes with a known mode
 }
 
-// A round picture on a dark surface with a keyed-mode marker.
+// A round picture with a double frame on a dark surface. Every style that fits
+// the shape is open to both modes; one that does not is refused.
 func ExampleRender() {
 	key, _ := hh.NewSecretKey(exampleKey)
 	defer key.Close()
@@ -111,12 +112,18 @@ func ExampleRender() {
 	img, err := hh.Render(fp, 96, opts)
 	fmt.Println(img.Width, img.Height, len(img.Pix), err)
 
-	// The same marker on the public picture is refused.
-	_, err = hh.Render(hh.Universal(digest), 96, opts)
+	// The same look for the public picture.
+	img, err = hh.Render(hh.Universal(digest), 96, opts)
+	fmt.Println(img.Width, img.Height, len(img.Pix), err)
+
+	// Rounded corners need the square shape.
+	opts.Frame = hh.FrameRounded
+	_, err = hh.Render(fp, 96, opts)
 	fmt.Println(err)
 	// Output:
 	// 96 96 36864 <nil>
-	// hh: invalid_frame: the frame is not allowed for this shape or mode
+	// 96 96 36864 <nil>
+	// hh: invalid_frame: the frame is not allowed for this shape
 }
 
 // Errors are values: compare them, or read the numeric code that every

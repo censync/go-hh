@@ -41,4 +41,4 @@ package hh
 
 // Version is the version of this library. The algorithm itself has no version:
 // no release changes a fingerprint, a pixel or an encoded byte.
-const Version = "1.0.0"
+const Version = "1.1.0"

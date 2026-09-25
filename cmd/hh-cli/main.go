@@ -331,13 +331,11 @@ func generate(count int, seed uint64, stdout io.Writer) {
 		}
 
 		shape := pick(&r, "square", "round")
-		// Mostly a frame that fits the mode and the shape.
+		// Mostly a frame that fits the shape.
 		var frame string
 		switch {
 		case r.intn(8) == 0:
 			frame = hh.Frame(r.intn(10)).String()
-		case key == "-":
-			frame = pick(&r, "automatic", "none", "plain")
 		case shape == "round":
 			frame = pick(&r, "automatic", "none", "plain", "double", "thick", "ticks", "gaps")
 		default:

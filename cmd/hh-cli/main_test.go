@@ -68,6 +68,21 @@ func TestSingleKeyed(t *testing.T) {
 	}
 }
 
+// A universal picture takes every frame style that fits the shape.
+func TestSingleUniversalWithAFrame(t *testing.T) {
+	for _, args := range [][]string{
+		{address, "--frame", "thick"},
+		{address, "--frame", "rounded"},
+		{address, "--shape", "round", "--frame", "ticks"},
+	} {
+		var stdout, stderr bytes.Buffer
+		code := single(args, &stdout, &stderr)
+		if code != 0 || !strings.HasPrefix(stdout.String(), "mode         universal\n") {
+			t.Errorf("%v: exit code %d, %q", args, code, stderr.String())
+		}
+	}
+}
+
 func TestSingleFailures(t *testing.T) {
 	for _, c := range []struct {
 		args   []string
@@ -76,7 +91,9 @@ func TestSingleFailures(t *testing.T) {
 	}{
 		{[]string{"0xzz"}, 1, "error: invalid_hex: "},
 		{[]string{address, "--size", "15"}, 1, "error: invalid_size: "},
-		{[]string{address, "--frame", "thick"}, 1, "error: invalid_frame: "},
+		{[]string{address, "--frame", "ticks"}, 1, "error: invalid_frame: "},
+		{[]string{address, "--shape", "round", "--frame", "brackets"}, 1, "error: invalid_frame: "},
+		{[]string{address, "--key", keyHex, "--frame", "gaps"}, 1, "error: invalid_frame: "},
 		{[]string{address, "--key", "00"}, 1, "error: invalid_key: "},
 		{[]string{address, "--format", "gif"}, 1, "error: invalid_argument: "},
 		{[]string{address, "--format", "jpeg", "--quality", "49"}, 1, "error: invalid_quality: "},

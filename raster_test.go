@@ -175,7 +175,7 @@ func samplerFingerprint(mode Mode) Fingerprint {
 	return fp
 }
 
-// The styles each shape allows for a keyed fingerprint (SPEC.md section 6).
+// The styles each shape allows, in either mode (SPEC.md section 6).
 var framesOfShape = map[Shape][]Frame{
 	ShapeSquare: {FrameNone, FramePlain, FrameRounded, FrameChamfered, FrameDouble, FrameThick, FrameBrackets},
 	ShapeRound:  {FrameNone, FramePlain, FrameDouble, FrameThick, FrameTicks, FrameGaps},
@@ -205,9 +205,13 @@ func TestRenderEqualsTheSampleBySampleReference(t *testing.T) {
 				if size > 256 && k != size%len(frames) {
 					continue
 				}
-				fp := samplerFingerprint(ModeKeyed)
+				mode := ModeKeyed
+				if n%2 == 0 {
+					mode = ModeUniversal
+				}
+				fp := samplerFingerprint(mode)
 				if n%3 == 0 {
-					fp, _ = ImportFingerprint(random.bytes(FingerprintSize), ModeKeyed)
+					fp, _ = ImportFingerprint(random.bytes(FingerprintSize), mode)
 				}
 				opts := RenderOptions{
 					Shape:      shape,
@@ -227,8 +231,8 @@ func TestRenderEqualsTheSampleBySampleReference(t *testing.T) {
 				want := referenceRender(fp, size, shape, frame, opts.Background.Color(),
 					int(opts.Background.Alpha()), int(opts.FrameAlpha.Alpha()))
 				if !bytes.Equal(img.Pix, want) {
-					t.Fatalf("size %d %v %v background %v frame alpha %d: the pixels differ from the reference",
-						size, shape, frame, opts.Background, opts.FrameAlpha.Alpha())
+					t.Fatalf("size %d %v %v %v background %v frame alpha %d: the pixels differ from the reference",
+						size, mode, shape, frame, opts.Background, opts.FrameAlpha.Alpha())
 				}
 			}
 		}
@@ -256,6 +260,47 @@ func TestAutomaticFrameEqualsTheReference(t *testing.T) {
 			if !bytes.Equal(img.Pix, referenceRender(fp, size, c.shape, c.resolved, RGB{255, 255, 255}, 255, 255)) {
 				t.Errorf("%v %v %d: the pixels differ from the reference", c.mode, c.shape, size)
 			}
+		}
+	}
+}
+
+// The frame depends on the style and the shape alone: two fingerprints with the
+// same bytes and different modes give identical pictures, or the same error,
+// for every explicit style. Only FrameAutomatic looks at the mode.
+func TestAnExplicitFrameDrawsTheSameInBothModes(t *testing.T) {
+	universal, keyed := samplerFingerprint(ModeUniversal), samplerFingerprint(ModeKeyed)
+	rendered := 0
+	for _, shape := range []Shape{ShapeSquare, ShapeRound} {
+		for frame := FrameNone; int(frame) < len(frameNames); frame++ {
+			for _, size := range []int{16, 17, 18, 33, 64, 80, 97, 128} {
+				for _, background := range []Background{{}, Transparent(), Translucent(RGB{0x12, 0x34, 0x56}, 0x80)} {
+					opts := RenderOptions{Shape: shape, Frame: frame, Background: background, FrameAlpha: Alpha(200)}
+					a, errA := Render(universal, size, opts)
+					b, errB := Render(keyed, size, opts)
+					if errA != errB {
+						t.Fatalf("%v %v %d: %v and %v", shape, frame, size, errA, errB)
+					}
+					if errA != nil {
+						continue
+					}
+					if !bytes.Equal(a.Pix, b.Pix) {
+						t.Fatalf("%v %v %d background %v: the modes give different pixels", shape, frame, size, background)
+					}
+					rendered++
+				}
+			}
+		}
+	}
+	if rendered < 250 {
+		t.Errorf("only %d renders were compared", rendered)
+	}
+	// A universal picture with rounded corners is the keyed square picture of
+	// the same bytes with the automatic frame.
+	for _, size := range []int{16, 48, 80, 128, 256} {
+		automatic := mustRender(t, keyed, size, RenderOptions{})
+		rounded := mustRender(t, universal, size, RenderOptions{Frame: FrameRounded})
+		if !bytes.Equal(automatic.Pix, rounded.Pix) {
+			t.Errorf("%d: universal with FrameRounded differs from keyed with FrameAutomatic", size)
 		}
 	}
 }

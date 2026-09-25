@@ -6,6 +6,26 @@ All notable changes to this project are documented here. The format follows
 its golden vectors were copied from. The algorithm itself is frozen and has no version: no
 release changes a fingerprint, a pixel or an encoded byte.
 
+## [1.1.0] - 2026-09-25
+
+Golden vectors: hh-cpp v1.1.0.
+
+### Changed
+
+- The mode no longer restricts the look: universal fingerprints take every frame style that fits
+  the shape (`FrameRounded`, `FrameChamfered`, `FrameDouble`, `FrameThick`, `FrameBrackets`,
+  `FrameTicks`, `FrameGaps`), which 1.0.0 refused with `ErrInvalidFrame`. A style that does not
+  fit the shape is still `ErrInvalidFrame`. `FrameAutomatic` is unchanged:
+  universal pictures stay frameless and keyed square pictures keep their rounded corners, so
+  every picture 1.0.0 rendered is the same to the byte.
+- The text of `ErrInvalidFrame` no longer names the mode ("the frame is not allowed for this
+  shape"), and the doc comments of `Frame`, its constants, `RenderOptions.Frame` and `Render`
+  describe the rule of the shape.
+- `cmd/hh-cli --generate`: the frame of a case depends on the shape alone, so cases without a key
+  get every style of their shape as well.
+- The golden vectors of hh-cpp v1.1.0 add renders and size sweeps of universal fingerprints with
+  every style, and their error records test the shape alone.
+
 ## [1.0.0] - 2026-09-21
 
 The first release. Golden vectors: hh-cpp v1.0.0.
@@ -44,4 +64,5 @@ The first release. Golden vectors: hh-cpp v1.0.0.
   pseudo-random cases and the hand-made cases of `tools/edge-cases.txt`.
   `tools/update-vectors.sh` copies the vectors and writes `testdata/SOURCE`.
 
+[1.1.0]: https://github.com/censync/go-hh/releases/tag/v1.1.0
 [1.0.0]: https://github.com/censync/go-hh/releases/tag/v1.0.0

@@ -99,9 +99,9 @@ var (
 	// ErrInvalidSize reports a render size outside MinSize..MaxSize, or one
 	// that leaves no room for the cells.
 	ErrInvalidSize = &Error{CodeInvalidSize, "the image size must be 16..1024 and leave room for the cells"}
-	// ErrInvalidFrame reports a frame that is not allowed for the shape or the
-	// mode.
-	ErrInvalidFrame = &Error{CodeInvalidFrame, "the frame is not allowed for this shape or mode"}
+	// ErrInvalidFrame reports a frame style that does not fit the shape, such as
+	// FrameTicks on a square picture or FrameRounded on a round one.
+	ErrInvalidFrame = &Error{CodeInvalidFrame, "the frame is not allowed for this shape"}
 	// ErrLowContrast reports an opaque background that is too close to a
 	// palette colour.
 	ErrLowContrast = &Error{CodeLowContrast, "the background is too close to a palette colour"}
