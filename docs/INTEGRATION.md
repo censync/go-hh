@@ -58,6 +58,102 @@ func (c *digestCache) ofAddress(address []byte) (hh.BaseDigest, error) {
 Bound the map (an LRU, or a size check that drops it) if the inputs come from outside: every
 entry is small, but an attacker can ask for many.
 
+### Addresses that are text
+
+The table of hh-cpp's INTEGRATION.md asks for bytes wherever one address has several spellings.
+The functions below turn the usual spellings into those bytes. They check the form and the
+checksum, not whether the address exists or whose it is, and they are not part of the library,
+which takes any bytes and any text: copy them into the application.
+
+- TON: every spelling of one account (bounceable `EQ...`, non-bounceable `UQ...`, base64 or
+  base64url, raw `0:...`) gives the same 36 bytes and so the same picture. Hashed as text, the
+  four spellings would give four unrelated pictures.
+- Bitcoin: a bech32 address may be written in capitals, as QR codes do; both spellings give one
+  picture. Base58 addresses are case-sensitive and pass unchanged.
+- Free text (a name, an e-mail address, a label a person types) is hashed exactly as given, so
+  case, spaces and the Unicode form all count: an accented letter typed as one character (U+00E9)
+  and as a letter and a combining accent (U+0065 U+0301) gives two different pictures. Normalise
+  text a person types to NFC first; what to do about case and spaces is the application's choice.
+
+```go
+import (
+	"encoding/base64"
+	"encoding/binary"
+	"encoding/hex"
+	"strings"
+)
+
+// tonAddressBytes returns the canonical 36 bytes (the workchain as 4 bytes
+// big-endian, then the 32-byte account hash) of a user-friendly address (48
+// characters of base64 or base64url, any flags) or a raw one ("0:" or "-1:" and
+// 64 hex digits). It reports false for anything else or a wrong checksum.
+func tonAddressBytes(text string) ([]byte, bool) {
+	out := make([]byte, 36)
+	if workchain, account, ok := strings.Cut(text, ":"); ok {
+		hash, err := hex.DecodeString(account)
+		if (workchain != "0" && workchain != "-1") || err != nil || len(hash) != 32 {
+			return nil, false
+		}
+		if workchain == "-1" {
+			binary.BigEndian.PutUint32(out, 0xFFFFFFFF)
+		}
+		copy(out[4:], hash)
+		return out, true
+	}
+	if len(text) != 48 {
+		return nil, false
+	}
+	raw, err := base64.StdEncoding.DecodeString(strings.NewReplacer("-", "+", "_", "/").Replace(text))
+	if err != nil || len(raw) != 36 {
+		return nil, false
+	}
+	var crc uint16 // CRC-16/XMODEM over flags, workchain and hash
+	for _, b := range raw[:34] {
+		crc ^= uint16(b) << 8
+		for k := 0; k < 8; k++ {
+			if crc&0x8000 != 0 {
+				crc = crc<<1 ^ 0x1021
+			} else {
+				crc <<= 1
+			}
+		}
+	}
+	if crc != binary.BigEndian.Uint16(raw[34:]) {
+		return nil, false
+	}
+	binary.BigEndian.PutUint32(out, uint32(int32(int8(raw[1]))))
+	copy(out[4:], raw[2:34])
+	return out, true
+}
+
+// bitcoinAddressText folds bech32 and bech32m addresses (bc1, tb1, bcrt1), which
+// are case-insensitive, to lower case and reports false for one in mixed case.
+// Base58 addresses are hashed as they are written.
+func bitcoinAddressText(text string) (string, bool) {
+	lower := strings.ToLower(text)
+	if !strings.HasPrefix(lower, "bc1") && !strings.HasPrefix(lower, "tb1") &&
+		!strings.HasPrefix(lower, "bcrt1") {
+		return text, true
+	}
+	if text != lower && text != strings.ToUpper(text) {
+		return "", false
+	}
+	return lower, true
+}
+```
+
+```go
+if b, ok := tonAddressBytes(tonAddress); ok {
+	digest, err = hh.NewBaseDigest(b)
+}
+if text, ok := bitcoinAddressText(bitcoinAddress); ok {
+	digest, err = hh.BaseDigestFromText(text)
+}
+```
+
+The Go standard library has no Unicode normaliser; `norm.NFC.String(label)` of
+`golang.org/x/text/unicode/norm` does it, as a dependency of the program rather than of go-hh.
+
 ## 2. Serving a picture over `net/http`
 
 The algorithm is frozen, so the universal picture of an input at a given size and look never
